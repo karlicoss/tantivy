@@ -184,6 +184,7 @@ fn select_best_fragment_combination(fragments: &[FragmentCandidate], text: &str)
         }
     });
     if let Some(fragment) = best_fragment_opt {
+        // TODO ok, this sort of sucks...
         let fragment_text = &text[fragment.start_offset..fragment.stop_offset];
         let highlighted = fragment
             .highlighted
@@ -314,6 +315,16 @@ impl SnippetGenerator {
         self.snippet(&text)
     }
 
+    pub fn snippets_from_doc(&self, doc: &Document) -> Vec<Snippet> {
+        let text: String = doc
+            .get_all(self.field)
+            .into_iter()
+            .flat_map(Value::text)
+            .collect::<Vec<&str>>()
+            .join(" ");
+        self.snippets(&text)
+    }
+
     /// Generates a snippet for the given text.
     pub fn snippet(&self, text: &str) -> Snippet {
         let fragment_candidates = search_fragments(
@@ -322,7 +333,32 @@ impl SnippetGenerator {
             &self.terms_text,
             self.max_num_chars,
         );
-        select_best_fragment_combination(&fragment_candidates[..], &text)
+        dbg!(&fragment_candidates);
+        for i in 0..fragment_candidates.len()  {
+            let zz = select_best_fragment_combination(&fragment_candidates[i..i + 1], &text);
+            dbg!(&zz.to_html());
+        }
+        let res = select_best_fragment_combination(&fragment_candidates[..], &text);
+        // dbg!(&res.to_html());
+        res
+    }
+
+    pub fn snippets(&self, text: &str) -> Vec<Snippet> {
+        let fragment_candidates = search_fragments(
+            &*self.tokenizer,
+            &text,
+            &self.terms_text,
+            self.max_num_chars,
+        );
+        fragment_candidates
+            .into_iter()
+            .map(|item| {
+                Snippet {
+                    fragments: text.to_string(),
+                    highlighted: item.highlighted,
+                }
+            })
+            .collect()
     }
 }
 
