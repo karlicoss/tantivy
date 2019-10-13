@@ -333,7 +333,7 @@ impl SnippetGenerator {
             &self.terms_text,
             self.max_num_chars,
         );
-        dbg!(&fragment_candidates);
+        // dbg!(&fragment_candidates);
         for i in 0..fragment_candidates.len()  {
             let zz = select_best_fragment_combination(&fragment_candidates[i..i + 1], &text);
             dbg!(&zz.to_html());
@@ -350,6 +350,29 @@ impl SnippetGenerator {
             &self.terms_text,
             self.max_num_chars,
         );
+        dbg!(text.len());
+        let ch: Vec<char> = text.chars().collect();
+        dbg!(ch.len());
+        // for i in 0..ch.len() {
+        //     println!("{} {}", i, ch[i]);
+        // }
+        for i in 0..fragment_candidates.len()  {
+            let fr = &fragment_candidates[i];
+            // if fr.
+                for hl in &fr.highlighted {
+                    if (hl.start == 5517) {
+                        dbg!(hl.start);
+                        dbg!(hl.stop);
+                        dbg!(&text[hl.start..hl.stop]);
+                        dbg!(fr);
+                        dbg!(text.to_string().len());
+                        // println!("{}", text);
+                        // dbg!(text);
+                    }
+                }
+            let zz = select_best_fragment_combination(&fragment_candidates[i..i + 1], &text);
+            // dbg!(&zz.to_html());
+        }
         fragment_candidates
             .into_iter()
             .map(|item| {
