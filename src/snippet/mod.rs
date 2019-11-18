@@ -166,22 +166,25 @@ fn search_fragments<'a>(
     fragments
 }
 
+
+fn fragments_comparator(left: &&FragmentCandidate, right: &&FragmentCandidate) -> Ordering {
+    let cmp_score = left
+        .score
+        .partial_cmp(&right.score)
+        .unwrap_or(Ordering::Equal);
+    if cmp_score == Ordering::Equal {
+        (right.start_offset, right.stop_offset).cmp(&(left.start_offset, left.stop_offset))
+    } else {
+        cmp_score
+    }
+}
+
 /// Returns a Snippet
 ///
 /// Takes a vector of `FragmentCandidate`s and the text.
 /// Figures out the best fragment from it and creates a snippet.
 fn select_best_fragment_combination(fragments: &[FragmentCandidate], text: &str) -> Snippet {
-    let best_fragment_opt = fragments.iter().max_by(|left, right| {
-        let cmp_score = left
-            .score
-            .partial_cmp(&right.score)
-            .unwrap_or(Ordering::Equal);
-        if cmp_score == Ordering::Equal {
-            (right.start_offset, right.stop_offset).cmp(&(left.start_offset, left.stop_offset))
-        } else {
-            cmp_score
-        }
-    });
+    let best_fragment_opt = fragments.iter().max_by(&fragments_comparator);
     if let Some(fragment) = best_fragment_opt {
         let fragment_text = &text[fragment.start_offset..fragment.stop_offset];
         let highlighted = fragment
@@ -311,11 +314,50 @@ impl SnippetGenerator {
         self.snippet(&text)
     }
 
+    /// Generates all snippets for the given `Document`.
+    pub fn snippets_from_doc(&self, doc: &Document) -> Vec<Snippet> {
+        let text: String = doc
+            .get_all(self.field)
+            .into_iter()
+            .flat_map(Value::text)
+            .collect::<Vec<&str>>()
+            .join(" ");
+        self.snippets(&text)
+    }
+
     /// Generates a snippet for the given text.
     pub fn snippet(&self, text: &str) -> Snippet {
         let fragment_candidates =
             search_fragments(&self.tokenizer, &text, &self.terms_text, self.max_num_chars);
         select_best_fragment_combination(&fragment_candidates[..], &text)
+    }
+
+    /// Generates all snippets for the given text.
+    ///
+    /// WARNING: it behaves somewhat differently from .snippet at the moment,
+    /// we want to keep absolute positions so they can be handled upstream, whereas
+    /// select_best_fragment_combination in snippet relativises highlights
+    /// TODO need to figure that out and consolidate APIs.
+    pub fn snippets(&self, text: &str) -> Vec<Snippet> {
+        let fragment_candidates = {
+            let mut cand = search_fragments(
+                &self.tokenizer,
+                &text,
+                &self.terms_text,
+                self.max_num_chars,
+            );
+            cand.sort_by(|l, r| fragments_comparator(&l, &r).reverse());
+            cand
+        };
+        fragment_candidates
+            .into_iter()
+            .map(|item| {
+                Snippet {
+                    fragments: text.to_string(),
+                    highlighted: item.highlighted,
+                }
+            })
+            .collect()
     }
 }
 
